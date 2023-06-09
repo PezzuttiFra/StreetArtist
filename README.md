@@ -1,23 +1,122 @@
-# ArteVera
+# Problema di multithreading, "Artista di strada"
 
-Questo programma simula l'arrivo di clienti in un negozio d'arte per farsi fare un ritratto.
+## Main:
+```java
+public class Main {
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+		System.out.println("quanti clienti vuoi arrivino oggi?");
+	    Scanner S = new Scanner(System.in);
+	    int totaleClienti = S.nextInt();
+	    S.close();
+		for (int i = 0; i < totaleClienti; i++) {
+			Cliente c = new Cliente();
+			c.start();
+		}
+	}
+}
+```
+Questa è la classe main della mia soluzione, esegue in modo consecutivo 2 azioni principali:
 
-## Classi
+- Richiede il numro totale di clienti che si vuole avere tramite uno scanner
+- Esegue un ciclo for che inizzializza(e fa partire) il numero di clienti richiesto
 
-Il programma è composto da tre classi: `Main`, `Data` e `Cliente`.
+## Data:
+```java
+public class Data {
 
-### Main
+	public static int IDclienti = 0;
+	public static Semaphore ritratto = new Semaphore(1);
+	public static Semaphore sedie = new Semaphore(5);	
+	
+	public static String[] listaNomi = {
+			"Giovanni",
+			"Mattia",
+			"Pippo",
+			"Pluto",
+			"Piermentosfracellozzi",
+			"Eliosterconi",
+			"Casimirogrumaioli",
+			"Sandrostecchino",
+			"Girolamoseghetti",
+			"Agneieszka"
+	};
+}
+```
+La classe Data contiene i semafori , la lista dei nomi e l'ID, sono tutti statici di modo che possano averne accesso tutti i clienti in modo semplice 
 
-La classe `Main` contiene il metodo `main` che avvia il programma. Chiede all'utente quanti clienti vuole arrivino oggi e crea un nuovo oggetto `Cliente` per ogni cliente. Ogni oggetto `Cliente` viene avviato come un thread.
 
-### Data
+## Cliente:
+```java
+public class Cliente extends Thread{
+	public long tempoArrivo = System.currentTimeMillis(); //istante arrivo
+	Random rand = new Random();
+	public int tempoAttesaMs = 1000;
+	public String nome = "";
+	public int ID = 0;
+	private int maxTempoPerRitrarre = 1000;
+	private int minTempoPerRitrarre = 800;
+	private int maxAttesa = 800;
+	
+	public Cliente(){
+		this.nome = Data.listaNomi[rand.nextInt(10)];
+		this.ID = Data.IDclienti;
+		Data.IDclienti++;
+	}
+	
+	public void run() {
+		
+	try {
+		Data.sedie.acquire();
+	} catch (InterruptedException e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+	}
+	
+	long tempoTrascorso = System.currentTimeMillis() - tempoArrivo;
+	if(tempoTrascorso > maxAttesa) {
+		Data.sedie.release();
+		System.out.println("Il cliente " + this.nome+ " con ID: "+ this.ID +" se ne va insoddisfatto");
+		return;
+	}
+	
+	try {
+		Data.ritratto.acquire();
+	} catch (InterruptedException e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+	}
+	
+	Data.sedie.release();
+	
+	System.out.println("L'artista ha ritratto il signor "+ this.nome + " ID: " + this.ID);
+	int attesa = rand.nextInt(maxTempoPerRitrarre - minTempoPerRitrarre) + minTempoPerRitrarre;
+		try {
+		sleep(attesa);
+	} catch (InterruptedException e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+	}
+	
+	Data.ritratto.release();//fine con rilascio
+	return;
+	}
+}
+```
+# @Override:
+Avendo fatto l'override del contruttore di "Cliente" ad ogniuno di questi viene assegnato un nome casuale fra l'elenco presente nella classe Data e un ID procedurale (anche essi conteggiati nella classe Data)
 
-La classe `Data` contiene variabili statiche condivise tra tutti gli oggetti `Cliente`. Queste includono l'ID del cliente corrente, i semafori per il ritratto e le sedie e una lista di nomi da assegnare ai clienti.
+```java
+    @override
+	public Cliente(){
+		this.nome = Data.listaNomi[rand.nextInt(10)];
+		this.ID = Data.IDclienti;
+		Data.IDclienti++;
+	}
+```
 
-### Cliente
+# Semaforo:
 
-La classe `Cliente` estende la classe `Thread` e rappresenta un singolo cliente. Ogni cliente ha un tempo di arrivo, un tempo di attesa massimo, un nome e un ID. Quando viene avviato il thread del cliente, cerca di acquisire una sedia. Se non riesce ad acquisirla entro il tempo massimo di attesa, il cliente se ne va insoddisfatto. Altrimenti, cerca di acquisire il semaforo del ritratto e viene ritratto dall'artista. Una volta terminato il ritratto, il semaforo viene rilasciato.
+Quando viene acquisito il semaforo delle sedie (al massimo da 5 clienti contemporaneamente) il cliente che lo ha acquisito controllerà se il tepmpo che ha aspettato da quando è stato istanziato è massimo del suo tempo massimo di attesa (tempoPazienzaPaziente) che è pari an un numero casuale che può avere come valore massimo il valore maxAttesa.
+Se il tempo di attesa è quindi troppo lungo il cliente se ne andrà insottisatto, sennò cercherà di acquisire il semaforo dell'artistaper farsi ritrarre.
 
-## Utilizzo
-
-Per utilizzare questo programma, eseguire la classe `Main`. Verrà chiesto all'utente di inserire il numero di clienti che vuole arrivino oggi. Inserire un numero intero e premere invio. Il programma simulerà l'arrivo dei clienti e la loro interazione con l'artista.
